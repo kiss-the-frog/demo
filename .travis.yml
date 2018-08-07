@@ -35,4 +35,4 @@ script:
 - "./jfrog rt build-add-git $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER"
 - ./jfrog rt build-publish --build-url="https://travis-ci.org/$TRAVIS_REPO_SLUG/builds/$TRAVIS_BUILD_ID"
   $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
-- kubectl set image -f kubernetes/sample-app-deployment.yaml sample-app=kiss-docker.jfrog.io/sample-app:$TRAVIS_BUILD_NUMBER
+- kubectl set image -f kubernetes/sample-app-deployment.yaml sample-app=kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER
