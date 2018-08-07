@@ -117,21 +117,31 @@ Run local Gradle build to confirm the project is running
 1. 10. Push the changes (`Dockerfile`, `.dockerignore`, `.travis.yml`) and watch the Travis build.
 
 ### Add Kubernetes
-1. Add a new Docker Registry secret `kubectl create secret docker-registry artifactory-registry --docker-username=admin --docker-password=... --docker-email=me@not.val.id --docker-server=kiss-docker.jfrog.io`
 1. Create `kubernetes/` directory: `mkdir kubernetes`
 1. Generate a Deployment YAML `kubectl run sample-app --image=kiss-docker.jfrog.io/kiss-the-frog/test-two:latest --dry-run -oyaml > sample-app-deployment.yaml`
+1. Add a new Docker Registry secret `kubectl create secret docker-registry artifactory-registry --docker-username=admin --docker-password=... --docker-email=me@not.val.id --docker-server=kiss-docker.jfrog.io`
 1. Add `ImagePullSecrets` to reference to Docker Registry secret.
+    ```yaml
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    ...
+    spec:
+      ...
+      template:
+      ...
+        spec:
+          imagePullSecrets:
+          - name: artifactory-registry
+          containers:
+            ...
+    ```
 1. Generate the Service `kubectl expose -f sample-app-deployment.yaml --type=LoadBalancer --port=8080 --target-port=8080 --dry-run -oyaml > sample-app-svc.yaml`
 1. Deploy the service: `kubectl apply -f sample-app-deployment.yaml`
-1. Generate a Service YAML
-1. Generate and encrypt a service account
+1. Create a GCP Service Account, with limited role/permission (e.g., Kubernetes Developer)
+1. Generate a JSON key for the service account
+1. Encrypt the JSON key with Travis: `travis encrypt-file travis-service-account.json --add`
 1. Update Travis to download `gcloud`
-1. Install `kubectl` command line
-1. Configure `gcloud` to use the service account
-1. Use `gcloud` to fetch Kubernetes credentials
-1. Update image to the image from the build
-
-    ```
+    ```yaml
     cache:
       directories:
       - $HOME/google-cloud-sdk
@@ -143,12 +153,24 @@ Run local Gradle build to confirm the project is running
       curl https://sdk.cloud.google.com | bash;
     fi
     - source $HOME/google-cloud-sdk/path.bash.inc
-    - gcloud components install kubectl
+    ```
+1. Set the default project, and activate the service account.
+    ```yaml
+    before_install:
+    ...    
     - gcloud config set core/project kiss-jfrog
     - gcloud auth activate-service-account --key-file=$TRAVIS_BUILD_DIR/travis-ci-service-account.json
+    ```
+1. Install `kubectl` command line, and fetch the GKE credential
+    ```yaml
+    before_install:
+    ...
+    - gcloud components install kubectl
     - gcloud container clusters get-credentials kiss-jfrog-cluster --zone=us-central1-a
     ```
-
-    ```
-    kubectl set image -f kubernetes/sample-app-deployment.yaml sample-app=kiss-docker.jfrog.io/sample-app:$TRAVIS_BUILD_NUMBER
+1. Update image to the image from the build and push to Kubernetes
+    ```yaml
+    script:
+    ...
+    - kubectl set image -f kubernetes/sample-app-deployment.yaml sample-app=kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER
     ```
