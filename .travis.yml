@@ -1,1 +1,22 @@
 language: java
+env:
+  global:
+    secure: pGY2pS3Bw60aY0Tw6+d4YsvEmCMusANarMxnuk/4WbxNMP0polpIKNfLemWm4uK53A+mt/eqIuGNj3TqqBga5WbM33itROY5/rAxvrmWAY20kCgyJlc035Wz3PJiTKhtYTuai+vSEXnDkPnqxkdzyS7iwr1n+gpGkr2BpzQWhCUrFv9bxRN7ae77eLa6Hh46qaSG21pInxgtlJcCF7ocXA59gL3Lj67WNrUtgP0tfSr045gv6AlQkE068ihTCdmW8ZdWG7vxn3imNs+RbAVXHU2+IwJlLNgQ2hP5Thg7Xg56T6e3LSFoqvQHZ3Uh9V/IUxeVcVd3qdHVMtAjpjTM6KnnpiO8RYUHB2mMi5kGpSyg2ypZ6oQmn9Q6R4x4kLvLQKGnQJWsgzDggWElduF22DOZy4/O3MpHYF1HWe/jAAP+67aDsMkYCypY6tQJ9fn2ECgnUoDpdlQVL/a93KkbK3jSib4SvH3CvnUHycwQroKvANdsf5OSRBJ4MOdeeli2GK8rGL/sJFxhtXD3TnBaIW0ZqrS++c24zAvYueIqeGHzOfqkuQ7c3hfDJEVo+NP9oyJASNW4mkJQ55rcJzejBPhFH6UBP/ts9CDmKfuH/e2hKObI3Mjurxxsf5k5TcLx8t8mePuHQWVSmcZs8lomDUSdKXIGwvB67jZbspysdLE=
+
+cache:
+  directories:
+  - $HOME/.gradle/wrapper
+  - $HOME/.gradle/caches
+
+before_install:
+- wget https://dl.bintray.com/jfrog/jfrog-cli-go/1.17.1/jfrog-cli-linux-amd64/jfrog
+- chmod +x jfrog
+- ./jfrog rt config kiss --url=https://kiss.jfrog.io/kiss --user=admin --password=$ARTIFACTORY_KEY --interactive=false
+
+install: true
+
+script:
+- ./jfrog rt gradle "build artifactoryPublish" gradleSpec.yml --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
+- ./jfrog rt build-collect-env $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
+- ./jfrog rt build-add-git $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
+- ./jfrog rt build-publish --build-url="https://travis-ci.org/$TRAVIS_REPO_SLUG/builds/$TRAVIS_BUILD_ID" $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER

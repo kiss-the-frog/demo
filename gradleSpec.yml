@@ -1,0 +1,9 @@
+version: 1
+type: gradle
+useWrapper: true
+resolver:
+  repo: libs-release
+  serverID: kiss
+deployer:
+  repo: libs-snapshot-local
+  serverID: kiss
