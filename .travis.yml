@@ -12,11 +12,15 @@ before_install:
 - wget https://dl.bintray.com/jfrog/jfrog-cli-go/1.17.1/jfrog-cli-linux-amd64/jfrog
 - chmod +x jfrog
 - ./jfrog rt config kiss --url=https://kiss.jfrog.io/kiss --user=admin --password=$ARTIFACTORY_KEY --interactive=false
+- docker login --username admin --password $ARTIFACTORY_KEY kiss-docker.jfrog.io
 
 install: true
 
 script:
 - ./jfrog rt gradle "build artifactoryPublish" gradleSpec.yml --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
+- docker build -t kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER .
+- ./jfrog rt build-add-dependencies $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER "build/libs/*.jar"
+- ./jfrog rt docker-push kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER docker --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
 - ./jfrog rt build-collect-env $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
 - ./jfrog rt build-add-git $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
 - ./jfrog rt build-publish --build-url="https://travis-ci.org/$TRAVIS_REPO_SLUG/builds/$TRAVIS_BUILD_ID" $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
