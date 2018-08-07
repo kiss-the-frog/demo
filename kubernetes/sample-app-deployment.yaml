@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: sample-app
+  name: sample-app
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      run: sample-app
+  template:
+    metadata:
+      labels:
+        run: sample-app
+    spec:
+      imagePullSecrets:
+      - name: artifactory-registry
+      containers:
+      - image: kiss-docker.jfrog.io/kiss-the-frog/demo:3
+        name: sample-app

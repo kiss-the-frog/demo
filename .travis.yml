@@ -2,25 +2,37 @@ language: java
 env:
   global:
     secure: pGY2pS3Bw60aY0Tw6+d4YsvEmCMusANarMxnuk/4WbxNMP0polpIKNfLemWm4uK53A+mt/eqIuGNj3TqqBga5WbM33itROY5/rAxvrmWAY20kCgyJlc035Wz3PJiTKhtYTuai+vSEXnDkPnqxkdzyS7iwr1n+gpGkr2BpzQWhCUrFv9bxRN7ae77eLa6Hh46qaSG21pInxgtlJcCF7ocXA59gL3Lj67WNrUtgP0tfSr045gv6AlQkE068ihTCdmW8ZdWG7vxn3imNs+RbAVXHU2+IwJlLNgQ2hP5Thg7Xg56T6e3LSFoqvQHZ3Uh9V/IUxeVcVd3qdHVMtAjpjTM6KnnpiO8RYUHB2mMi5kGpSyg2ypZ6oQmn9Q6R4x4kLvLQKGnQJWsgzDggWElduF22DOZy4/O3MpHYF1HWe/jAAP+67aDsMkYCypY6tQJ9fn2ECgnUoDpdlQVL/a93KkbK3jSib4SvH3CvnUHycwQroKvANdsf5OSRBJ4MOdeeli2GK8rGL/sJFxhtXD3TnBaIW0ZqrS++c24zAvYueIqeGHzOfqkuQ7c3hfDJEVo+NP9oyJASNW4mkJQ55rcJzejBPhFH6UBP/ts9CDmKfuH/e2hKObI3Mjurxxsf5k5TcLx8t8mePuHQWVSmcZs8lomDUSdKXIGwvB67jZbspysdLE=
-
 cache:
   directories:
-  - $HOME/.gradle/wrapper
-  - $HOME/.gradle/caches
-
+  - "$HOME/.gradle/wrapper"
+  - "$HOME/.gradle/caches"
+  - "$HOME/google-cloud-sdk"
 before_install:
+- openssl aes-256-cbc -K $encrypted_641e6ec44a47_key -iv $encrypted_641e6ec44a47_iv
+  -in travis-cicd.json.enc -out travis-cicd.json -d
+- export CLOUDSDK_CORE_DISABLE_PROMPTS=1
 - wget https://dl.bintray.com/jfrog/jfrog-cli-go/1.17.1/jfrog-cli-linux-amd64/jfrog
 - chmod +x jfrog
-- ./jfrog rt config kiss --url=https://kiss.jfrog.io/kiss --user=admin --password=$ARTIFACTORY_KEY --interactive=false
+- "./jfrog rt config kiss --url=https://kiss.jfrog.io/kiss --user=admin --password=$ARTIFACTORY_KEY
+  --interactive=false"
 - docker login --username admin --password $ARTIFACTORY_KEY kiss-docker.jfrog.io
-
+- if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; curl
+  https://sdk.cloud.google.com | bash; fi
+- source $HOME/google-cloud-sdk/path.bash.inc
+- gcloud components install kubectl
+- gcloud config set core/project kiss-jfrog
+- gcloud auth activate-service-account --key-file=$TRAVIS_BUILD_DIR/travis-cicd.json
+- gcloud container clusters get-credentials kiss-jfrog-cluster --zone=us-central1-a
 install: true
-
 script:
-- ./jfrog rt gradle "build artifactoryPublish" gradleSpec.yml --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
+- ./jfrog rt gradle "build artifactoryPublish" gradleSpec.yml --build-name=$TRAVIS_REPO_SLUG
+  --build-number=$TRAVIS_BUILD_NUMBER
 - docker build -t kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER .
 - ./jfrog rt build-add-dependencies $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER "build/libs/*.jar"
-- ./jfrog rt docker-push kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER docker --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
-- ./jfrog rt build-collect-env $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
-- ./jfrog rt build-add-git $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
-- ./jfrog rt build-publish --build-url="https://travis-ci.org/$TRAVIS_REPO_SLUG/builds/$TRAVIS_BUILD_ID" $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
+- "./jfrog rt docker-push kiss-docker.jfrog.io/$TRAVIS_REPO_SLUG:$TRAVIS_BUILD_NUMBER
+  docker --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER"
+- "./jfrog rt build-collect-env $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER"
+- "./jfrog rt build-add-git $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER"
+- ./jfrog rt build-publish --build-url="https://travis-ci.org/$TRAVIS_REPO_SLUG/builds/$TRAVIS_BUILD_ID"
+  $TRAVIS_REPO_SLUG $TRAVIS_BUILD_NUMBER
+- kubectl set image -f kubernetes/sample-app-deployment.yaml sample-app=kiss-docker.jfrog.io/sample-app:$TRAVIS_BUILD_NUMBER
