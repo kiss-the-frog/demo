@@ -68,7 +68,7 @@ Run local Gradle build to confirm the project is running
 7. Add gradle build to travis.yml `script` section
     ```
     script:
-    - ./jfrog rt gradle "clean build artifactoryPublish" gradleSpec.yml --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
+    - ./jfrog rt gradle "build artifactoryPublish" gradleSpec.yml --build-name=$TRAVIS_REPO_SLUG --build-number=$TRAVIS_BUILD_NUMBER
     ```
 8. Add environment and git information to the build-info and deploy the build info
     ```
